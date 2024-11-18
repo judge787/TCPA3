@@ -69,7 +69,12 @@ int main(int argc, char *argv[]) {
     char *buffer = malloc(bufSize); // Allocate memory for the buffer
     size_t bytesRead; // Variable to hold the number of bytes read
     while ((bytesRead = fread(buffer, 1, bufSize, file)) > 0) { // Read data from file in chunks
-        send(clientSocket, buffer, bytesRead, 0); // Send the data to the server
+        // send(clientSocket, buffer, bytesRead, 0); // Send the data to the server
+        uint32_t chunkSize = htonl(bytesRead); // Convert chunk size to network byte order
+        send(clientSocket, &chunkSize, sizeof(chunkSize), 0); // Send chunk size
+        send(clientSocket, buffer, bytesRead, 0); // Send chunk data
+
+        printf("Sent chunk of size %zu bytes.\n", bytesRead); // Debug log
     }
 
     // Clean up resources
