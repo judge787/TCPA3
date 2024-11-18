@@ -8,47 +8,108 @@
 
 #define DEFAULT_BUF_SIZE 4096 // Default buffer size
 
+// void handle_client(int client_socket, char *buf, int buf_size) {
+//     char file_name[256];
+//     int received = recv(client_socket, file_name, sizeof(file_name), 0); // Receive file name
+//     if (received <= 0) {
+//         perror("Failed to receive file name");
+//         close(client_socket);
+//         return;
+//     }
+
+//     // Handle duplicate file names
+//     char saved_file[512];
+//     snprintf(saved_file, sizeof(saved_file), "./%s", file_name);
+//     int suffix = 1;
+//     while (access(saved_file, F_OK) == 0) { // Ensure no overwriting
+//         snprintf(saved_file, sizeof(saved_file), "./%s(%d)", file_name, suffix++);
+//     }
+
+//     FILE *file = fopen(saved_file, "wb"); // Open file to write
+//     if (!file) {
+//         perror("Failed to create file");
+//         close(client_socket);
+//         return;
+//     }
+
+//     ssize_t bytes;
+//     size_t total_bytes = 0; // Total size of the file
+//     while ((bytes = recv(client_socket, buf, buf_size, 0)) > 0) { // Receive chunks
+//         fwrite(buf, 1, bytes, file);
+//         total_bytes += bytes;
+//     }
+
+//     if (bytes < 0) {
+//         perror("Error while receiving file data");
+//     } else {
+//         printf("File '%s' saved successfully.\n", saved_file);
+//         printf("File size: %zu bytes\n", total_bytes); // Display total file size
+//     }
+
+//     fclose(file);
+//     close(client_socket);
+// }
+
 void handle_client(int client_socket, char *buf, int buf_size) {
     char file_name[256];
-    int received = recv(client_socket, file_name, sizeof(file_name), 0); // Receive file name
+    // Receive the file name from the client
+    int received = recv(client_socket, file_name, sizeof(file_name), 0);
     if (received <= 0) {
         perror("Failed to receive file name");
         close(client_socket);
         return;
     }
 
-    // Handle duplicate file names
+    // Handle duplicate file names to prevent overwriting
     char saved_file[512];
     snprintf(saved_file, sizeof(saved_file), "./%s", file_name);
     int suffix = 1;
-    while (access(saved_file, F_OK) == 0) { // Ensure no overwriting
+    while (access(saved_file, F_OK) == 0) { // Check if the file already exists
         snprintf(saved_file, sizeof(saved_file), "./%s(%d)", file_name, suffix++);
     }
 
-    FILE *file = fopen(saved_file, "wb"); // Open file to write
+    // Open the file for binary writing
+    FILE *file = fopen(saved_file, "wb");
     if (!file) {
         perror("Failed to create file");
         close(client_socket);
         return;
     }
 
-    ssize_t bytes;
-    size_t total_bytes = 0; // Total size of the file
-    while ((bytes = recv(client_socket, buf, buf_size, 0)) > 0) { // Receive chunks
-        fwrite(buf, 1, bytes, file);
-        total_bytes += bytes;
+    ssize_t bytes;        // Bytes received in each chunk
+    size_t total_bytes = 0; // Total size of the file received
+
+    // Start receiving the file data
+    while ((bytes = recv(client_socket, buf, buf_size, 0)) > 0) { // Receive chunks of data
+    // Write the received data into the file
+    if (fwrite(buf, 1, (size_t)bytes, file) != (size_t)(bytes)) { 
+        // Check if fwrite wrote all bytes successfully
+        perror("Error writing to file");
+        break; // Stop the loop if there is a write error
     }
 
-    if (bytes < 0) {
+    total_bytes += (size_t)bytes; // Update the cumulative total bytes received
+
+    // Debug log to show the size of the chunk received
+    printf("Received %zd bytes in this chunk. Total so far: %zu bytes.\n", bytes, total_bytes);
+    }
+
+
+    // Handle errors or end of transmission
+    if (bytes < 0) { 
+        // Log an error if the recv() call fails
         perror("Error while receiving file data");
     } else {
+        // Log the successful completion of file transfer
         printf("File '%s' saved successfully.\n", saved_file);
-        printf("File size: %zu bytes\n", total_bytes); // Display total file size
+        printf("File size: %zu bytes\n", total_bytes); // Display the total size of the file received
     }
 
-    fclose(file);
-    close(client_socket);
+    // Clean up resources
+    fclose(file); // Close the file after writing all data
+    close(client_socket); // Close the client socket connection
 }
+
 
 int main(int argc, char *argv[]) {
     if (argc < 3) {
