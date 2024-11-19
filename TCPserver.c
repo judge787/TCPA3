@@ -54,22 +54,13 @@ void handle_client(int client_socket, char *buf, int buf_size) {
     // Start receiving file data
     while ((bytes_received = recv(client_socket, &chunk_size, sizeof(chunk_size), 0)) > 0) {
         chunk_size = ntohl(chunk_size); // Convert chunk size to host byte order
-        // printf("Expecting chunk of size %u bytes.\n", chunk_size);
-
-        // if (chunk_size == 0 || chunk_size > (uint32_t)buf_size) {
-        //     fprintf(stderr, "Invalid chunk size received: %u bytes. Closing connection.\n", chunk_size);
-        //     fclose(file);
-        //     close(client_socket);
-        //     return;
-        // }
 
         size_t received_so_far = 0;
         while (received_so_far < chunk_size) {
-            // Declare `len` to track bytes received in each call
             ssize_t len = recv(client_socket, buf,
                                (chunk_size - received_so_far > (size_t)buf_size)
-                                ? (size_t)buf_size
-                                : (chunk_size - received_so_far),
+                                   ? (size_t)buf_size
+                                   : (chunk_size - received_so_far),
                                0);
             if (len <= 0) {
                 perror("Error while receiving file chunk");
@@ -81,25 +72,32 @@ void handle_client(int client_socket, char *buf, int buf_size) {
             fwrite(buf, 1, len, file);
             received_so_far += len;
             total_bytes += len;
-
-            printf("Received %zd bytes in this chunk. Total received for this chunk: %zu/%u bytes.\n", len, received_so_far, chunk_size);
         }
-
-        // printf("Chunk of size %u bytes received successfully.\n", chunk_size);
     }
 
-    // Log successful file transfer
-    if (bytes_received < 0) {
-        perror("Error while receiving file data");
+    // Log the transfer summary
+    if (bytes_received >= 0) {
+        printf("\n=== File Transfer Summary ===\n");
+        printf("Original File Name: %s\n", file_name);
+        printf("Final File Name: %s\n", saved_file);
+        printf("File Size: %zu bytes\n", total_bytes);
+
+        // Assuming `client_addr` is available from the main loop
+        struct sockaddr_in client_addr;
+        socklen_t addr_len = sizeof(client_addr);
+        getpeername(client_socket, (struct sockaddr *)&client_addr, &addr_len);
+        printf("Received from: %s\n", inet_ntoa(client_addr.sin_addr));
+        printf("Server Buffer Size: %d bytes\n", buf_size);
+        printf("=============================\n");
     } else {
-        printf("File '%s' saved successfully.\n", saved_file);
-        printf("File size: %zu bytes\n", total_bytes);
+        perror("Error while receiving file data");
     }
 
     // Clean up resources
     fclose(file);
     close(client_socket);
 }
+
 
 int main(int argc, char *argv[]) {
     if (argc < 3) {
