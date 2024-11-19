@@ -107,6 +107,11 @@ int main(int argc, char *argv[]) {
 
     int port = atoi(argv[1]);
     size_t buf_size = (argc == 3) ? atoi(argv[2]) : DEFAULT_BUF_SIZE;
+    if (buf_size <= 0) {
+    fprintf(stderr, "Invalid buffer size: %zu\n", buf_size);
+    return 1;
+    }
+
 
     char *buf = malloc(buf_size);
     if (!buf) {
@@ -153,7 +158,7 @@ int main(int argc, char *argv[]) {
             continue;
         }
 
-        printf("Connection from %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+        printf("Connection established with client at %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
         handle_client(client_socket, buf, buf_size);
     }
 

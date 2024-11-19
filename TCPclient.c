@@ -49,7 +49,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    if (connect(clientSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0) {
+   printf("Connecting to server at %s:%d...\n", ipAddress, port);
+   if (connect (clientSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0) {
         perror("Connection failed");
         close(clientSocket);
         fclose(file);
